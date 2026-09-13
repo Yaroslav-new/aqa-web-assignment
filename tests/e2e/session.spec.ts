@@ -107,7 +107,7 @@ test.describe('Session · lifecycle', () => {
       await expect(loginPage.section).toBeVisible();
 
       await cleanPage.goBack();
-      await expect(cleanPage).toHaveURL('http://localhost:5173/');
+      await expect(cleanPage).toHaveURL('/');
       await expect(loginPage.section).toBeVisible();
       await expect(homePage.header).toHaveCount(0);
       expect(await session(cleanPage)).toBeNull();

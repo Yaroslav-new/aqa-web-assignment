@@ -924,6 +924,20 @@ Evidence: src/App.vue:20–27
 Notes: use a real <button> (or role="button" + tabindex="0" + @keydown.enter/space + @keydown.esc + :aria-expanded). Note this control is also invisible today (BUG-02), so the two fixes should land together. Cross-ref A11Y-010.
 ```
 
+### BUG-07 - Decorative icons are not hidden from assistive tech
+```
+Title: Font Awesome <i class="fas ..."> icons in the nav bar and dropdown carry no aria-hidden, so some screen readers announce raw glyph codepoints instead of nothing
+Severity: minor (accessibility: moderate - WCAG 1.1.1 Non-text Content / 4.1.2, best-practice for icon fonts)
+Environment: any screen reader, logged-in view, commit 22b9d35
+Steps to reproduce:
+  1. Log in
+  2. Inspect the six <i class="fas ..."> elements in header/nav (src/App.vue:7,11,15,21,24,29)
+Actual: none of them declare aria-hidden="true"
+Expected: purely decorative icons are aria-hidden="true"; the user-icon control (src/App.vue:20-21) additionally needs its own accessible name on the control itself (tracked as BUG-06), since hiding the icon alone would leave that control unnamed
+Evidence: src/App.vue:7,11,15,21,24,29 - no aria-hidden attribute on any <i> element
+Notes: add aria-hidden="true" to every decorative <i class="fas ...">. Land together with the BUG-06 fix so `.user-section` gets both a real accessible name and an aria-hidden icon. Cross-ref A11Y-021.
+```
+
 ### Findings (risks and limitations - not failing tests)
 
 | # | Finding | Impact | Evidence |
@@ -966,7 +980,7 @@ Notes: use a real <button> (or role="button" + tabindex="0" + @keydown.enter/spa
 | Accessibility (A11Y-001…022) | 22 | 1 | 10 | 11 | 14 | 4 | 4 |
 | **Total** | **95** | **18** | **38** | **39** | **78** | **8** | **9** |
 
-Cases that document a **known defect** and are therefore expected to fail on the current build: `UI-002` (BUG-01), `UI-008` and `SESSION-006` (BUG-02), `A11Y-003`/`A11Y-004`/`A11Y-012` (BUG-03 - confirmed at runtime by axe: the whole-page scans of the logged-in states hit the `.btn-logout` contrast), `A11Y-007` (BUG-04), `A11Y-008`/`A11Y-009` (BUG-05), `A11Y-010` (BUG-06), `A11Y-017`, `A11Y-018`, `A11Y-020`. Write them; do not weaken them to match the bug - mark them `fixme` with the bug id if CI must be green.
+Cases that document a **known defect** and are therefore expected to fail on the current build: `UI-002` (BUG-01), `UI-008` and `SESSION-006` (BUG-02), `A11Y-003`/`A11Y-004`/`A11Y-012` (BUG-03 - confirmed at runtime by axe: the whole-page scans of the logged-in states hit the `.btn-logout` contrast), `A11Y-007` (BUG-04), `A11Y-008`/`A11Y-009` (BUG-05), `A11Y-010` (BUG-06), `A11Y-021` (BUG-07), `A11Y-017`, `A11Y-018`, `A11Y-020`. Write them so they actually execute and fail on the current build (`test.fail(true, 'BUG-xx: ...')`), not `test.fixme()` - `test.fixme()` aborts the test body immediately and never turns red when the bug is fixed, so it cannot act as the "permanent regression guard" this plan and `DECISIONS.md` promise. Reserve `test.fixme()` for cases blocked by tooling/environment, not by an app defect.
 
 Cases marked **(assumption)** - behaviour the code leaves undefined: `LOGIN-017`, `LOGIN-019`, `LOGIN-038`, `SESSION-009`, `SESSION-010`, `SESSION-012`, `SESSION-017`, `UI-004`, `UI-005`, `UI-010`.
 

@@ -22,7 +22,7 @@ export class LoginPage {
     this.password = page.getByLabel('Password');
     this.submit = page.getByRole('button', { name: 'LOGIN' });
     this.error = page.locator('.error-message');
-    this.injectedNodes = page.locator('img[src="x"], .error-message script, .error-message img');
+    this.injectedNodes = page.locator('.error-message script, .error-message img[src="x"]');
   }
 
   /** Fill both fields and submit by clicking the LOGIN button. */
