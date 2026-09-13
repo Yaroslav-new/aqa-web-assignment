@@ -938,6 +938,21 @@ Evidence: src/App.vue:7,11,15,21,24,29 - no aria-hidden attribute on any <i> ele
 Notes: add aria-hidden="true" to every decorative <i class="fas ...">. Land together with the BUG-06 fix so `.user-section` gets both a real accessible name and an aria-hidden icon. Cross-ref A11Y-021.
 ```
 
+### BUG-08 - The Font Awesome kit script 403s, so no icon ever renders and the user-icon dropdown trigger has zero size
+```
+Title: index.html loads icons from a personal Font Awesome Kit (https://kit.fontawesome.com/372ad6816f.js); that request returns HTTP 403, the script never runs its <i> → <svg> replacement, and every icon-only element that has no explicit width/height collapses to a 0x0 box
+Severity: major (compounds BUG-02: even after the CSS fix, .user-section has no accessible click target)
+Environment: real Chromium, unrestricted network, commit 22b9d35 - confirmed live via the playwright-test MCP browser (not just the CLI test run), so this is not a sandbox/proxy artifact
+Steps to reproduce:
+  1. Open http://localhost:5173 with devtools open
+  2. Observe the console and network tab
+  3. Log in as admin@admin.com / 2020 and look at the nav bar
+Actual: console shows `Failed to load resource: the server responded with a status of 403 () @ https://kit.fontawesome.com/372ad6816f.js`; Home/Products/Contact render with no icon glyph at all; `.user-section` (the div wrapping fa-user-circle, App.vue:20-21) has `getBoundingClientRect() = {width: 0, height: 0}` and `::before` computed `content: none` - it is present in the DOM but has no clickable surface, so a mouse user cannot open the Sign Out dropdown even once BUG-02's CSS is fixed
+Expected: icons render (kit is valid and unrestricted for this domain, or icons are self-hosted/bundled instead of depending on a third-party account-scoped script), and `.user-section` has a real box the same way `.btn-logout` (a <button> with padding and text) does
+Evidence: review/evidence/bug08-icons-not-rendering.png (screenshot - nav bar with text but no icons anywhere); live console/network capture via playwright-test MCP, 2026-09-13
+Notes: this Kit ID (`372ad6816f`) is almost certainly scoped in the developer's Font Awesome account to a specific domain - it 403s from any other origin, so this reproduces for every environment testing against localhost, not just this one. Root fix: self-host the Font Awesome SVGs (`@fortawesome/fontawesome-free` as a dependency) or issue a kit that allows `localhost`/the deployed domain, and give `.user-section` explicit dimensions so it doesn't depend on icon content for its hit area at all (ties into the BUG-06 "use a real <button>" fix). Cross-ref BUG-02, BUG-06, UI-008, UI-011.
+```
+
 ### Findings (risks and limitations - not failing tests)
 
 | # | Finding | Impact | Evidence |
