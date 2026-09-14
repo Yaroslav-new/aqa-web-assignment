@@ -70,6 +70,16 @@ visual judgement. Updated 2026-09-14.
 
 ## 5. Authentication
 
+### 5.0 Data integrity
+
+### LOGIN-DATA-01 - The app authenticates against the same user list as `js/users.js` [P0] [auto]
+Preconditions: app at `/`, `localStorage` empty
+Steps:
+  1. Read `users` off the live Vue instance (`document.querySelector('#app').__vue_app__._instance.data.users`)
+  2. Compare it to the list imported from `js/users.js`
+Expected: the two lists are deeply equal
+Why it matters: `App.vue` hard-codes its own copy of the three accounts instead of importing `js/users.js` (FINDING-07). Without this case, every other login test could stay green forever using retyped credentials while the app's own copy silently drifts - the suite would be testing data the running app never actually reads.
+
 ### 5.1 Positive authentication
 
 ### LOGIN-001 - Admin account logs in successfully [P0] [auto]
@@ -989,6 +999,7 @@ Notes: this Kit ID (`372ad6816f`) is almost certainly scoped in the developer's 
 
 | Area | Cases | P0 | P1 | P2 | auto | manual | both |
 |---|---|---|---|---|---|---|---|
+| Data integrity (LOGIN-DATA-01) | 1 | 1 | 0 | 0 | 1 | 0 | 0 |
 | Positive authentication (LOGIN-001…008) | 8 | 3 | 3 | 2 | 8 | 0 | 0 |
 | Negative authentication (LOGIN-010…022) | 13 | 5 | 6 | 2 | 13 | 0 | 0 |
 | Boundary / edge inputs (LOGIN-030…039) | 10 | 1 | 2 | 7 | 9 | 1 | 0 |
@@ -996,7 +1007,7 @@ Notes: this Kit ID (`372ad6816f`) is almost certainly scoped in the developer's 
 | Session / localStorage (SESSION-001…017) | 17 | 8 | 6 | 3 | 14 | 1 | 2 |
 | UI / UX (UI-001…016) | 16 | 0 | 6 | 10 | 12 | 1 | 3 |
 | Accessibility (A11Y-001…022) | 22 | 1 | 10 | 11 | 14 | 4 | 4 |
-| **Total** | **95** | **18** | **38** | **39** | **78** | **8** | **9** |
+| **Total** | **96** | **19** | **38** | **39** | **79** | **8** | **9** |
 
 Cases that document a **known defect** and are therefore expected to fail on the current build: `UI-002` (BUG-01), `UI-008` and `SESSION-006` (BUG-02), `A11Y-003`/`A11Y-004`/`A11Y-012` (BUG-03 - confirmed at runtime by axe: the whole-page scans of the logged-in states hit the `.btn-logout` contrast), `A11Y-007` (BUG-04), `A11Y-008`/`A11Y-009` (BUG-05), `A11Y-010` (BUG-06), `A11Y-021` (BUG-07), `UI-011`'s user-icon half and `SESSION-006` (also BUG-08, confirmed live via the playwright-test MCP browser), `A11Y-017`, `A11Y-018`, `A11Y-020`. Write them so they actually execute and fail on the current build (`test.fail(true, 'BUG-xx: ...')`), not `test.fixme()` - `test.fixme()` aborts the test body immediately and never turns red when the bug is fixed, so it cannot act as the "permanent regression guard" this plan and `DECISIONS.md` promise. Reserve `test.fixme()` for cases blocked by tooling/environment, not by an app defect. As implemented: `tests/a11y/axe.spec.ts` and `tests/a11y/keyboard.spec.ts` use `test.fail()` for every one of these except the two blocked by BUG-08's zero-size click target, where the trigger click itself is issued via `homePage.openUserMenu()` (a forced `dispatchEvent('click')`, not a real simulated mouse click) so the test fails fast on the actual assertion instead of hanging on a 30s actionability timeout.
 
@@ -1022,7 +1033,7 @@ Cases marked **(assumption)** - behaviour the code leaves undefined: `LOGIN-017`
 
 Suggested file mapping, so each spec has one clear subject:
 
-- `tests/e2e/login.spec.ts` - `LOGIN-001…008`, `LOGIN-010…022`, `LOGIN-030…038`, `LOGIN-040…047`
+- `tests/e2e/login.spec.ts` - `LOGIN-DATA-01`, `LOGIN-001…008`, `LOGIN-010…022`, `LOGIN-030…038`, `LOGIN-040…047`
 - `tests/e2e/session.spec.ts` - `SESSION-001…016`
 - `tests/e2e/ui.spec.ts` - `UI-001…003`, `UI-005…013`, `UI-015…016`
 - `tests/a11y/keyboard.spec.ts` - `A11Y-006…007`, `A11Y-014…015` (keyboard operability and focus)

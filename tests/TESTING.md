@@ -15,7 +15,7 @@ npm test                            # typecheck → unit → e2e
 
 The Vite dev server is started and stopped by Playwright itself (`webServer` in
 [playwright.config.ts](playwright.config.ts)) - do not run `npm run dev` first.
-A green run reports **89 passed, 0 skipped**: eleven cases document a confirmed
+A green run reports **89 passed, 0 skipped**: thirteen tests document a confirmed
 defect and are written with `test.fail()` (see "Known defects" below) - they
 genuinely execute and fail on the assertion that proves the bug, and Playwright
 counts an expected failure as a pass. None are `test.fixme`, which would abort
@@ -49,7 +49,7 @@ npx playwright test --repeat-each=10 --grep "SESSION-007"   # flake hunt
 
 ```
 tests/
-├── plans/login-test-cases.md   95 designed cases - the specification the specs implement
+├── plans/login-test-cases.md   96 designed cases - the specification the specs implement
 ├── e2e/                        functional specs: login, session, ui
 ├── a11y/                       accessibility: keyboard operability + axe WCAG A/AA scans
 ├── pages/                      Page Objects - locators and actions, no assertions
@@ -85,7 +85,7 @@ in a report maps straight back to its designed case.
 
 | Area | Cases implemented | What is proven |
 |---|---|---|
-| Login (`e2e/login.spec.ts`) | 36 (`LOGIN-001…047`, `LOGIN-DATA-01`) | all three accounts log in (by click, Enter, and paste); every negative/edge/injection input is rejected identically; error state transitions (shown, cleared, persisted, non-disclosing); no crash on 1000+ char or unicode input; double-submit and 20x-retry are safe |
+| Login (`e2e/login.spec.ts`) | 39 (`LOGIN-001…047`, `LOGIN-DATA-01`) | all three accounts log in (by click, Enter, and paste); every negative/edge/injection input is rejected identically; error state transitions (shown, cleared, persisted, non-disclosing); no crash on 1000+ char or unicode input; double-submit and 20x-retry are safe |
 | Session (`e2e/session.spec.ts`) | 16 (`SESSION-001…016`) | what `localStorage.logged` grants and revokes: survives reload, dies on logout (both entry points), password never persisted, cross-tab/cross-context isolation, the client-only trust model pinned deliberately |
 | UI (`e2e/ui.spec.ts`) | 15 (`UI-001…013`, `UI-015…016`) | every visible element, label, and layout claim in the design (320px width, background images, console cleanliness, both logout controls' real reachability) |
 | Accessibility (`a11y/`) | 18 (`A11Y-001…008`, `A11Y-010…012`, `A11Y-014…015`, `A11Y-017…019`, `A11Y-021…022`) | axe A/AA scans of four page states; label associations; contrast (heading pass, logout button fail); keyboard operability, tab order, no keyboard trap; autocomplete/title/lang/landmark structure; reflow at 320px and 200% zoom |

@@ -37,7 +37,7 @@ uses `test.fail()` for this reason.
 
 ## A written test plan came before any test code
 
-[tests/plans/login-test-cases.md](tests/plans/login-test-cases.md) - 95 cases
+[tests/plans/login-test-cases.md](tests/plans/login-test-cases.md) - 96 cases
 with preconditions, steps, expected result and a "why it matters" line - was
 written by reading `src/App.vue` line by line before `tests/e2e/*.spec.ts`
 existed. This forces every branch of `logIn/logOut/toggleLogout/clearError/
