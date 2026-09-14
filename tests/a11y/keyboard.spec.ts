@@ -36,4 +36,44 @@ test.describe('Accessibility · keyboard', () => {
       admin.email,
     );
   });
+
+  test('A11Y-007: every interactive control shows a visible focus indicator', async ({ loginPage }) => {
+    test.fail(true, 'BUG-04: outline:none on .btn-login with no compensating focus style (css/style.css:60)');
+
+    await loginPage.submit.focus();
+    await expect(loginPage.submit).not.toHaveCSS('outline-style', 'none');
+  });
+
+  test('A11Y-014: tab order is logical', async ({ loginPage, cleanPage }) => {
+    await expect(loginPage.email).toBeFocused();
+
+    await cleanPage.keyboard.press('Tab');
+    await expect(loginPage.password).toBeFocused();
+
+    await cleanPage.keyboard.press('Tab');
+    await expect(loginPage.submit).toBeFocused();
+  });
+
+  test('A11Y-015: no keyboard trap in either state', { tag: ['@critical'] }, async ({ loginPage, homePage, cleanPage }) => {
+    await test.step('logged out', async () => {
+      await expect(loginPage.email).toBeFocused();
+      await cleanPage.keyboard.press('Tab');
+      await cleanPage.keyboard.press('Tab');
+      await expect(loginPage.submit).toBeFocused();
+
+      await cleanPage.keyboard.press('Tab');
+      await expect(loginPage.submit).not.toBeFocused();
+
+      await cleanPage.keyboard.press('Shift+Tab');
+      await expect(loginPage.submit).toBeFocused();
+    });
+
+    await test.step('logged in', async () => {
+      await loginPage.login(admin.email, admin.password);
+      await expect(homePage.nav).toBeVisible();
+
+      await cleanPage.keyboard.press('Tab');
+      await expect(homePage.logoutButton).toBeFocused();
+    });
+  });
 });

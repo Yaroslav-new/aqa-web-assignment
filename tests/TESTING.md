@@ -15,8 +15,11 @@ npm test                            # typecheck → unit → e2e
 
 The Vite dev server is started and stopped by Playwright itself (`webServer` in
 [playwright.config.ts](playwright.config.ts)) - do not run `npm run dev` first.
-A green run reports **2 skipped**: two axe cases are `test.fixme` on a confirmed
-defect (see "Known defects" below).
+A green run reports **89 passed, 0 skipped**: eleven cases document a confirmed
+defect and are written with `test.fail()` (see "Known defects" below) - they
+genuinely execute and fail on the assertion that proves the bug, and Playwright
+counts an expected failure as a pass. None are `test.fixme`, which would abort
+the test body and prove nothing.
 
 ## Commands
 
@@ -82,24 +85,53 @@ in a report maps straight back to its designed case.
 
 | Area | Cases implemented | What is proven |
 |---|---|---|
-| Login (`e2e/login.spec.ts`) | 10 | all three accounts log in; wrong/unknown/mixed credentials are rejected; failures leave no session; XSS input is never executed |
-| Session (`e2e/session.spec.ts`) | 8 | what `localStorage.logged` grants and revokes: survives reload, dies on logout, password never persisted; the client-only trust model is pinned deliberately |
-| UI (`e2e/ui.spec.ts`) | 1 | both logout controls exist and are reachable |
-| Accessibility (`a11y/`) | 5 | keyboard-only login (WCAG 2.1.1); axe A/AA scans of four distinct page states |
+| Login (`e2e/login.spec.ts`) | 36 (`LOGIN-001…047`, `LOGIN-DATA-01`) | all three accounts log in (by click, Enter, and paste); every negative/edge/injection input is rejected identically; error state transitions (shown, cleared, persisted, non-disclosing); no crash on 1000+ char or unicode input; double-submit and 20x-retry are safe |
+| Session (`e2e/session.spec.ts`) | 16 (`SESSION-001…016`) | what `localStorage.logged` grants and revokes: survives reload, dies on logout (both entry points), password never persisted, cross-tab/cross-context isolation, the client-only trust model pinned deliberately |
+| UI (`e2e/ui.spec.ts`) | 15 (`UI-001…013`, `UI-015…016`) | every visible element, label, and layout claim in the design (320px width, background images, console cleanliness, both logout controls' real reachability) |
+| Accessibility (`a11y/`) | 18 (`A11Y-001…008`, `A11Y-010…012`, `A11Y-014…015`, `A11Y-017…019`, `A11Y-021…022`) | axe A/AA scans of four page states; label associations; contrast (heading pass, logout button fail); keyboard operability, tab order, no keyboard trap; autocomplete/title/lang/landmark structure; reflow at 320px and 200% zoom |
+
+Not automated: `LOGIN-039`/`LOGIN-048` (autofill UI, viewport scroll - password-manager and visual judgement calls), `SESSION-017` (blocked storage - needs a special browser profile), `UI-014` (manual viewport inspection), `A11Y-009`/`A11Y-013`/`A11Y-016`/`A11Y-020` (need a real screen reader or human visual judgement) - all `[manual]` in the plan by design, not gaps.
 
 Tiers are declared as tags, not in titles:
 `test('LOGIN-001: …', { tag: ['@smoke', '@critical'] }, …)` - `@smoke` is the
 core loop, `@critical` guards auth integrity, untagged is regression depth.
 
-## Known defects and expected skips
+## Known defects and expected failures
 
-The plan's §9 documents six confirmed defects (BUG-01…06) found by reading the
-source and confirmed at runtime. Tests that document a known defect state the
-*correct* behaviour and are marked `test.fixme` with the bug id - never weakened:
+The plan's §9 documents eight confirmed defects (BUG-01…08) found by reading
+the source and confirmed at runtime (BUG-08 live, via the `playwright-test`
+MCP browser). Tests that document a known defect state the *correct* behaviour
+and use `test.fail(true, 'BUG-xx: ...')` - never weakened, never `test.fixme`
+(which would abort the test body and prove nothing). Each genuinely runs and
+fails on the exact assertion that proves the bug, so it turns red on its own
+the day someone fixes the app - a real regression guard, not a silent skip:
 
-- `A11Y-003` / `A11Y-004` are skipped on **BUG-03**: the Logout button fails
-  WCAG AA contrast (≈3.96:1 vs required 4.5:1), confirmed by axe at runtime.
-  When the bug is fixed, the fixme comes off and the scans become permanent guards.
+- `UI-002` - **BUG-01**: `.content` stays `display:none`, so the logged-in
+  content area never becomes visible.
+- `UI-008`, `SESSION-006` - **BUG-02**: `.logout` stays `display:none`, so the
+  Sign Out dropdown is never reachable.
+- `A11Y-003`, `A11Y-004`, `A11Y-012` - **BUG-03**: the Logout button fails
+  WCAG AA contrast (≈3.96:1 vs required 4.5:1), confirmed by axe and by a
+  from-scratch relative-luminance calculation.
+- `A11Y-007` - **BUG-04**: `outline: none` removes the focus ring from the
+  LOGIN button with no compensating style.
+- `A11Y-008` - **BUG-05**: `.error-message` has no `role="alert"`, so failed
+  logins are never announced to a screen reader.
+- `A11Y-010` - **BUG-06**: the user-icon trigger is a bare `<div>` - no role,
+  name, or keyboard handler.
+- `A11Y-021` - **BUG-07**: none of the six Font Awesome icons carry
+  `aria-hidden`.
+- `SESSION-006`, `UI-011`'s user-icon half - **BUG-08**: `.user-section` has
+  zero rendered size because the Font Awesome kit script 403s, so it has no
+  clickable hit area even once BUG-02's CSS is fixed. Any test that must
+  interact with it uses `homePage.openUserMenu()`, which dispatches the click
+  event directly instead of simulating a real mouse click at real coordinates
+  - a genuine `.click()` on a 0×0 element either hangs for the full test
+  timeout or throws "outside of the viewport", neither of which is the actual
+  defect being tested.
+- `A11Y-017` - **FINDING-14**: no `autocomplete` attributes.
+- `A11Y-018` - **FINDING-17**: the page title is the generic "Single Page
+  Application".
 
 ## CI
 

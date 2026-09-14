@@ -2,7 +2,10 @@
 
 **Feature:** client-side login of the Vue 3 SPA (`src/App.vue`)
 **Author:** QA-Analyst · **Date:** 2026-08-28
-**Status:** design only
+**Status:** implemented — all 87 `[auto]`/`[both]` cases are automated (89 executable
+tests across `tests/e2e/` and `tests/a11y/`, `npm test` green); only the 8 `[manual]`
+cases (§12) remain unautomated by design, needing a real screen reader or human
+visual judgement. Updated 2026-09-14.
 
 ---
 
@@ -995,7 +998,7 @@ Notes: this Kit ID (`372ad6816f`) is almost certainly scoped in the developer's 
 | Accessibility (A11Y-001…022) | 22 | 1 | 10 | 11 | 14 | 4 | 4 |
 | **Total** | **95** | **18** | **38** | **39** | **78** | **8** | **9** |
 
-Cases that document a **known defect** and are therefore expected to fail on the current build: `UI-002` (BUG-01), `UI-008` and `SESSION-006` (BUG-02), `A11Y-003`/`A11Y-004`/`A11Y-012` (BUG-03 - confirmed at runtime by axe: the whole-page scans of the logged-in states hit the `.btn-logout` contrast), `A11Y-007` (BUG-04), `A11Y-008`/`A11Y-009` (BUG-05), `A11Y-010` (BUG-06), `A11Y-021` (BUG-07), `A11Y-017`, `A11Y-018`, `A11Y-020`. Write them so they actually execute and fail on the current build (`test.fail(true, 'BUG-xx: ...')`), not `test.fixme()` - `test.fixme()` aborts the test body immediately and never turns red when the bug is fixed, so it cannot act as the "permanent regression guard" this plan and `DECISIONS.md` promise. Reserve `test.fixme()` for cases blocked by tooling/environment, not by an app defect.
+Cases that document a **known defect** and are therefore expected to fail on the current build: `UI-002` (BUG-01), `UI-008` and `SESSION-006` (BUG-02), `A11Y-003`/`A11Y-004`/`A11Y-012` (BUG-03 - confirmed at runtime by axe: the whole-page scans of the logged-in states hit the `.btn-logout` contrast), `A11Y-007` (BUG-04), `A11Y-008`/`A11Y-009` (BUG-05), `A11Y-010` (BUG-06), `A11Y-021` (BUG-07), `UI-011`'s user-icon half and `SESSION-006` (also BUG-08, confirmed live via the playwright-test MCP browser), `A11Y-017`, `A11Y-018`, `A11Y-020`. Write them so they actually execute and fail on the current build (`test.fail(true, 'BUG-xx: ...')`), not `test.fixme()` - `test.fixme()` aborts the test body immediately and never turns red when the bug is fixed, so it cannot act as the "permanent regression guard" this plan and `DECISIONS.md` promise. Reserve `test.fixme()` for cases blocked by tooling/environment, not by an app defect. As implemented: `tests/a11y/axe.spec.ts` and `tests/a11y/keyboard.spec.ts` use `test.fail()` for every one of these except the two blocked by BUG-08's zero-size click target, where the trigger click itself is issued via `homePage.openUserMenu()` (a forced `dispatchEvent('click')`, not a real simulated mouse click) so the test fails fast on the actual assertion instead of hanging on a 30s actionability timeout.
 
 Cases marked **(assumption)** - behaviour the code leaves undefined: `LOGIN-017`, `LOGIN-019`, `LOGIN-038`, `SESSION-009`, `SESSION-010`, `SESSION-012`, `SESSION-017`, `UI-004`, `UI-005`, `UI-010`.
 
@@ -1032,3 +1035,13 @@ Manual-only, not for CI: `LOGIN-039`, `LOGIN-048`, `SESSION-017`, `UI-014`, `A11
 Two notes that affect implementation directly:
 1. **FINDING-07** - importing credentials from `js/users.js` is the right practice, but the app reads its own hard-coded copy in `App.vue:108–112`. Add one assertion that the two lists are identical, otherwise the whole suite could pass against data the app never uses.
 2. **FINDING-13** - do not build the keyboard flows on `autofocus` being honoured; focus `#email` explicitly, and let `UI-005` be the single case that tests autofocus itself.
+
+**Handoff complete (2026-09-14).** Actual file placement matches this mapping almost
+exactly, with two deliberate additions not listed above: `UI-004` landed in
+`tests/e2e/ui.spec.ts` alongside the rest of the logged-out group (it only needed the
+existing fixtures, no reason for a separate home), and `A11Y-008`/`A11Y-010` landed in
+`tests/a11y/axe.spec.ts` rather than being left unautomated - both only assert DOM
+attributes (`role`, `aria-hidden`, `tabindex`), which needs no real screen reader, so
+the `[both]` tag's automatable half is covered there and only the human-listening half
+stays manual. All P0 cases plus every other `[auto]`/`[both]` case are implemented;
+see the status line at the top of this document.

@@ -29,3 +29,9 @@ pnpm-debug.log*
 coverage/
 playwright-report/
 test-results/
+
+# AI tooling — Claude Code agents/skills and MCP server config
+.claude/
+.mcp.json
+CLAUDE.md
+review/
