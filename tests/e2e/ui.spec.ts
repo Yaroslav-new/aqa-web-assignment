@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/test';
-import { admin } from '../fixtures/users';
+import { admin, UNKNOWN_EMAIL } from '../fixtures/users';
 
 test.describe('UI · logged-out view', () => {
   test('UI-001: the logged-out view shows the login section only', async ({ loginPage, homePage }) => {
@@ -86,7 +86,7 @@ test.describe('UI · logged-out view', () => {
     await loginPage.login(admin.email, admin.password);
     await expect(homePage.nav).toBeVisible();
     await homePage.logout();
-    await loginPage.login('nobody@example.com', 'wrong');
+    await loginPage.login(UNKNOWN_EMAIL, 'wrong');
     await expect(loginPage.error).toBeVisible();
 
     expect(errors).toEqual([]);
@@ -97,10 +97,9 @@ test.describe('UI · logged-in view', () => {
   test('UI-002: the logged-in view shows nav, content and footer, and no login form', async ({
     loginPage,
     homePage,
+    loggedInPage,
   }) => {
     test.fail(true, 'BUG-01: .content is display:none in css/style.css, so it never becomes visible');
-
-    await loginPage.login(admin.email, admin.password);
 
     await expect(homePage.nav).toBeVisible();
     await expect(homePage.homeLink).toBeVisible();
@@ -111,18 +110,15 @@ test.describe('UI · logged-in view', () => {
     await expect(homePage.content).toBeVisible();
   });
 
-  test('UI-008: clicking the user icon opens the dropdown', async ({ loginPage, homePage }) => {
+  test('UI-008: clicking the user icon opens the dropdown', async ({ homePage, loggedInPage }) => {
     test.fail(true, 'BUG-02: .logout stays display:none — the dropdown mounts but is never visible');
 
-    await loginPage.login(admin.email, admin.password);
     await homePage.openUserMenu();
 
     await expect(homePage.signOut).toBeVisible();
   });
 
-  test('UI-009: clicking the user icon again closes the dropdown', async ({ loginPage, homePage }) => {
-    await loginPage.login(admin.email, admin.password);
-
+  test('UI-009: clicking the user icon again closes the dropdown', async ({ homePage, loggedInPage }) => {
     await homePage.openUserMenu();
     await expect(homePage.signOut).toBeAttached();
 
@@ -130,8 +126,7 @@ test.describe('UI · logged-in view', () => {
     await expect(homePage.signOut).toHaveCount(0);
   });
 
-  test('UI-010: clicking outside the dropdown does not close it', async ({ loginPage, homePage }) => {
-    await loginPage.login(admin.email, admin.password);
+  test('UI-010: clicking outside the dropdown does not close it', async ({ homePage, loggedInPage }) => {
     await homePage.openUserMenu();
     await expect(homePage.signOut).toBeAttached();
 
@@ -139,20 +134,25 @@ test.describe('UI · logged-in view', () => {
     await expect(homePage.signOut).toBeAttached();
   });
 
-  test('UI-011: the Logout button is present, enabled and reachable when logged in', { tag: ['@critical'] }, async ({
-    loginPage,
+  /**
+   * Both halves of designed case UI-011 ("both logout controls are present
+   * and reachable"), split into two tests: the button half passes, the
+   * user-icon half hits BUG-08. `test.fail()` requires the *whole* test to
+   * fail, so a passing and a failing assertion can't share one test body —
+   * splitting is what lets the button half stay a real regression guard
+   * instead of being swallowed by the icon half's expected failure.
+   */
+  test('UI-011a: the Logout button is present, enabled and reachable when logged in', { tag: ['@critical'] }, async ({
     homePage,
+    loggedInPage,
   }) => {
-    await loginPage.login(admin.email, admin.password);
-
     await expect(homePage.logoutButton).toBeVisible();
     await expect(homePage.logoutButton).toBeEnabled();
   });
 
-  test('UI-011: the user-icon trigger mounts but has no reachable hit area (BUG-08)', async ({ loginPage, homePage }) => {
+  test('UI-011b: the user-icon trigger mounts but has no reachable hit area (BUG-08)', async ({ homePage, loggedInPage }) => {
     test.fail(true, 'BUG-08: .user-section has zero rendered size because the Font Awesome kit 403s');
 
-    await loginPage.login(admin.email, admin.password);
     await expect(homePage.userIcon).toBeAttached();
     await expect(homePage.userIcon).toBeVisible();
   });

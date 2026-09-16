@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures/test';
-import { users, admin, growdev, invalidCredentials } from '../fixtures/users';
+import { users, admin, growdev, invalidCredentials, UNKNOWN_EMAIL } from '../fixtures/users';
+import { expectLoggedOut, session } from '../fixtures/assertions';
 import type { LoginPage } from '../pages/login.page';
 import type { HomePage } from '../pages/home.page';
 
@@ -8,19 +9,15 @@ const ERROR_TEXT = 'Invalid email or password. Please try again.';
 /** Long enough to prove there is no `maxlength` (App.vue has none), short enough to keep the test fast. */
 const LONG_STRING_LENGTH = 1000;
 
-/** Read `localStorage.logged` as the browser currently sees it. */
-const session = (page: Page) => page.evaluate(() => localStorage.getItem('logged'));
-
 /**
- * The four checks that define "this submission must not authenticate" —
- * every negative case in this file ends with exactly these, so they live in
- * one place instead of being retyped in each test.
+ * The negative-case checks that define "this submission must not
+ * authenticate": the shared `expectLoggedOut` state plus the specific error
+ * text. Every negative case in this file ends with this, so it lives in one
+ * place instead of being retyped in each test.
  */
 async function expectRejected(loginPage: LoginPage, homePage: HomePage, cleanPage: Page): Promise<void> {
   await expect(loginPage.error).toHaveText(ERROR_TEXT);
-  await expect(loginPage.section).toBeVisible();
-  await expect(homePage.header).toHaveCount(0);
-  expect(await session(cleanPage)).toBeNull();
+  await expectLoggedOut(loginPage, homePage, cleanPage);
 }
 
 test.describe('Login · data integrity', () => {
@@ -127,7 +124,7 @@ test.describe('Login · valid credentials', () => {
 test.describe('Login · invalid credentials', () => {
   const rejectedCases: { id: string; email: string; password: string; why: string }[] = [
     { id: 'LOGIN-010', email: admin.email, password: 'wrongpass', why: 'a valid email with the wrong password' },
-    { id: 'LOGIN-011', email: 'nobody@example.com', password: admin.password, why: 'an unknown email paired with a real password' },
+    { id: 'LOGIN-011', email: UNKNOWN_EMAIL, password: admin.password, why: 'an unknown email paired with a real password' },
     { id: 'LOGIN-012', email: '', password: '', why: 'an empty form' },
     { id: 'LOGIN-013', email: admin.email, password: '', why: 'an email with no password' },
     { id: 'LOGIN-014', email: '', password: admin.password, why: 'a password with no email' },
@@ -170,15 +167,13 @@ test.describe('Login · invalid credentials', () => {
     homePage,
     cleanPage,
   }) => {
-    await loginPage.login('nobody@example.com', 'nopass');
+    await loginPage.login(UNKNOWN_EMAIL, 'nopass');
 
-    await expect(loginPage.section).toBeVisible();
+    await expectLoggedOut(loginPage, homePage, cleanPage);
     await expect(loginPage.email).toBeVisible();
     await expect(loginPage.submit).toBeVisible();
-    await expect(homePage.header).toHaveCount(0);
     await expect(homePage.nav).toHaveCount(0);
     await expect(homePage.content).toHaveCount(0);
-    expect(await session(cleanPage)).toBeNull();
   });
 
   test('LOGIN-035: near-miss credentials are rejected (exact match, not partial)', async ({ loginPage, homePage, cleanPage }) => {
@@ -267,7 +262,7 @@ test.describe('Login · boundary and edge inputs', () => {
 
   test('LOGIN-038: repeated failed attempts are not throttled (FINDING-01)', async ({ loginPage, cleanPage }) => {
     for (let attempt = 0; attempt < 20; attempt++) {
-      await loginPage.login('nobody@example.com', 'wrong');
+      await loginPage.login(UNKNOWN_EMAIL, 'wrong');
       await expect(loginPage.error).toHaveText(ERROR_TEXT);
     }
     expect(await session(cleanPage)).toBeNull();
@@ -276,7 +271,7 @@ test.describe('Login · boundary and edge inputs', () => {
 
 test.describe('Login · error handling', () => {
   test('LOGIN-040: the error text is exactly the specified message', async ({ loginPage }) => {
-    await loginPage.login('nobody@example.com', 'wrong');
+    await loginPage.login(UNKNOWN_EMAIL, 'wrong');
     await expect(loginPage.error).toHaveText(ERROR_TEXT);
   });
 
@@ -288,7 +283,7 @@ test.describe('Login · error handling', () => {
   });
 
   test('LOGIN-042: typing in the email field clears the error', async ({ loginPage }) => {
-    await loginPage.login('nobody@example.com', 'wrong');
+    await loginPage.login(UNKNOWN_EMAIL, 'wrong');
     await expect(loginPage.error).toBeVisible();
 
     await loginPage.email.fill('n');
@@ -296,7 +291,7 @@ test.describe('Login · error handling', () => {
   });
 
   test('LOGIN-043: typing in the password field clears the error', async ({ loginPage }) => {
-    await loginPage.login('nobody@example.com', 'wrong');
+    await loginPage.login(UNKNOWN_EMAIL, 'wrong');
     await expect(loginPage.error).toBeVisible();
 
     await loginPage.password.fill('w');
@@ -313,7 +308,7 @@ test.describe('Login · error handling', () => {
   });
 
   test('LOGIN-045: the error persists across a second failing submit', async ({ loginPage }) => {
-    await loginPage.login('nobody@example.com', 'wrong');
+    await loginPage.login(UNKNOWN_EMAIL, 'wrong');
     await expect(loginPage.error).toHaveText(ERROR_TEXT);
 
     await loginPage.submit.click();
@@ -322,7 +317,7 @@ test.describe('Login · error handling', () => {
   });
 
   test('LOGIN-046: the error message does not disclose which field was wrong', async ({ loginPage }) => {
-    await loginPage.login('nobody@example.com', admin.password);
+    await loginPage.login(UNKNOWN_EMAIL, admin.password);
     const unknownEmailMessage = await loginPage.error.textContent();
 
     await loginPage.login(admin.email, 'wrongpass');
@@ -335,7 +330,7 @@ test.describe('Login · error handling', () => {
     loginPage,
     homePage,
   }) => {
-    await loginPage.login('nobody@example.com', 'wrong');
+    await loginPage.login(UNKNOWN_EMAIL, 'wrong');
     await expect(loginPage.error).toBeVisible();
 
     await loginPage.login(admin.email, admin.password);
