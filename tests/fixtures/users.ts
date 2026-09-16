@@ -18,11 +18,14 @@ export const admin: User = users[0];
 export const bianca: User = users[1];
 export const growdev: User = users[2];
 
+/** An email address that does not belong to any account in `users`. */
+export const UNKNOWN_EMAIL = 'nobody@example.com';
+
 /** Credential pairs that must never authenticate. */
 export type InvalidAttempt = User & { why: string };
 
 export const invalidCredentials: InvalidAttempt[] = [
   { email: admin.email, password: 'wrongpass', why: 'valid email, wrong password' },
-  { email: 'nobody@example.com', password: admin.password, why: 'unknown email, real password' },
+  { email: UNKNOWN_EMAIL, password: admin.password, why: 'unknown email, real password' },
   { email: '', password: '', why: 'empty form' },
 ];

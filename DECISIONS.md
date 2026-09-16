@@ -35,6 +35,17 @@ fail, but passed", which is the only mechanism that actually forces someone to
 notice and remove the annotation. Every defect-documenting case in the suite
 uses `test.fail()` for this reason.
 
+## One designed case can be two tests when `test.fail()` requires it
+
+`UI-011` ("both logout controls are present and reachable") is implemented as
+two tests, `UI-011a` and `UI-011b`, not one. The button half passes; the
+user-icon half hits BUG-08 and must be written `test.fail()` - which requires
+the *whole* test to fail, so a passing assertion and a `test.fail()`-marked
+failing one can't share a body without the passing half being swallowed by
+the expected failure. Splitting is what keeps the button half a real
+regression guard. The plan still lists `UI-011` as one designed case (see
+§7) - the split is purely how it's automated, not a second design decision.
+
 ## A written test plan came before any test code
 
 [tests/plans/login-test-cases.md](tests/plans/login-test-cases.md) - 96 cases
@@ -76,6 +87,22 @@ credentials the running app never actually reads. Instead every test imports
 `LOGIN-DATA-01`, reads the user list straight out of the live Vue instance and
 asserts it's `toEqual` the imported list. That one assertion is what makes
 importing the "correct" data source actually meaningful.
+
+## Shared fixtures and assertion helpers over per-file duplication
+
+`loginPage.login(admin.email, admin.password)` followed by a "nav is visible"
+sanity check used to be retyped at the top of most session/UI/a11y tests, and
+the "back on the login view, no header, no session key" check was retyped
+slightly differently in `login.spec.ts`, `session.spec.ts` and `ui.spec.ts`.
+Neither is a design choice worth re-deriving per file: `loggedInPage` in
+[tests/fixtures/test.ts](tests/fixtures/test.ts) covers the first (only for
+cases whose precondition is simply "already logged in" - a test that must
+observe the moment of login itself still calls `loginPage.login` directly),
+and `expectLoggedOut()` in
+[tests/fixtures/assertions.ts](tests/fixtures/assertions.ts) covers the
+second. Both stay at the spec layer, so "Page Objects hold no assertions"
+below is unaffected - this is deduplication of the spec-side checks, not a
+relocation of them into the page objects.
 
 ## Page Objects hold no assertions, specs hold no raw selectors
 

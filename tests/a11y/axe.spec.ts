@@ -21,7 +21,7 @@ import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import type { Result } from 'axe-core';
 import { test, expect } from '../fixtures/test';
-import { admin } from '../fixtures/users';
+import { admin, UNKNOWN_EMAIL } from '../fixtures/users';
 
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
@@ -74,32 +74,26 @@ test.describe('Accessibility · axe scans', () => {
   });
 
   test('A11Y-003: the logged-in page has no violations', async ({
-    loginPage,
     homePage,
-    cleanPage,
+    loggedInPage,
   }) => {
     test.fail(true, 'BUG-03: .btn-logout fails WCAG 1.4.3 contrast (≈3.96:1)');
-    await loginPage.login(admin.email, admin.password);
-    await expect(homePage.nav).toBeVisible();
 
-    const results = await scan(cleanPage);
+    const results = await scan(loggedInPage);
 
     expect(results.violations, formatViolations(results.violations)).toEqual([]);
   });
 
   test('A11Y-004: the open user dropdown has no violations', async ({
-    loginPage,
     homePage,
-    cleanPage,
+    loggedInPage,
   }) => {
     test.fail(true, 'BUG-03: .btn-logout fails WCAG 1.4.3 contrast (≈3.96:1)');
-    await loginPage.login(admin.email, admin.password);
-    await expect(homePage.nav).toBeVisible();
 
     await homePage.openUserMenu();
     await expect(homePage.signOut).toBeAttached();
 
-    const results = await scan(cleanPage);
+    const results = await scan(loggedInPage);
 
     expect(results.violations, formatViolations(results.violations)).toEqual([]);
   });
@@ -107,16 +101,12 @@ test.describe('Accessibility · axe scans', () => {
 
 test.describe('Accessibility · decorative icons', () => {
   test('A11Y-021: decorative icons are hidden from assistive tech', async ({
-    loginPage,
     homePage,
-    cleanPage,
+    loggedInPage,
   }) => {
     test.fail(true, 'BUG-07: nav/dropdown icons have no aria-hidden (App.vue:7,11,15,21,24,29)');
 
-    await loginPage.login(admin.email, admin.password);
-    await expect(homePage.nav).toBeVisible();
-
-    const icons = cleanPage.locator('header i.fas');
+    const icons = loggedInPage.locator('header i.fas');
     const count = await icons.count();
     expect(count, 'expected the nav bar to render its Font Awesome icons').toBeGreaterThan(0);
 
@@ -137,17 +127,16 @@ test.describe('Accessibility · screen-reader semantics', () => {
   test('A11Y-008: the error message is announced to screen readers', async ({ loginPage }) => {
     test.fail(true, 'BUG-05: .error-message is a plain div with no role="alert"/aria-live');
 
-    await loginPage.login('nobody@example.com', 'nopass');
+    await loginPage.login(UNKNOWN_EMAIL, 'nopass');
     await expect(loginPage.error).toHaveAttribute('role', 'alert');
   });
 
   test('A11Y-010: the user-icon dropdown trigger is keyboard operable and correctly exposed', async ({
-    loginPage,
     homePage,
+    loggedInPage,
   }) => {
     test.fail(true, 'BUG-06: .user-section is a bare div with @click only — no role, name or keyboard handler');
 
-    await loginPage.login(admin.email, admin.password);
     await expect(homePage.userIcon).toHaveAttribute('role', 'button');
     await expect(homePage.userIcon).toHaveAttribute('tabindex', '0');
   });
@@ -159,10 +148,8 @@ test.describe('Accessibility · contrast', () => {
     await expect(loginPage.heading).toHaveCSS('background-color', 'rgb(85, 107, 47)');
   });
 
-  test('A11Y-012: logout button contrast meets AA', async ({ loginPage, homePage }) => {
+  test('A11Y-012: logout button contrast meets AA', async ({ homePage, loggedInPage }) => {
     test.fail(true, 'BUG-03: white on #d9534f is ≈3.96:1, below the 4.5:1 AA threshold');
-
-    await loginPage.login(admin.email, admin.password);
 
     const ratio = await homePage.logoutButton.evaluate((el) => {
       const parse = (c: string) => c.match(/\d+/g)!.map(Number);

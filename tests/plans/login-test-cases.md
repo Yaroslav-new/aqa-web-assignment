@@ -5,7 +5,7 @@
 **Status:** implemented — all 87 `[auto]`/`[both]` cases are automated (89 executable
 tests across `tests/e2e/` and `tests/a11y/`, `npm test` green); only the 8 `[manual]`
 cases (§12) remain unautomated by design, needing a real screen reader or human
-visual judgement. Updated 2026-09-14.
+visual judgement. Updated 2026-09-16.
 
 ---
 
@@ -641,6 +641,7 @@ Steps:
   1. Locate `button.btn-logout` and `.user-section`
 Expected: both rendered inside `section.user`; the button is enabled and clickable at the default viewport
 Why it matters: SESSION-005 and SESSION-006 both depend on these controls existing; separating presence from behaviour makes a failure diagnosable in one step.
+Implemented as two tests, `UI-011a` (button) and `UI-011b` (icon): the icon half hits BUG-08 and is written `test.fail()`, which requires the whole test to fail - it can't share a body with the button half, which is expected to pass. Splitting keeps the passing half a real regression guard instead of having it swallowed by the icon half's expected failure.
 
 ### UI-012 - Footer is present in both states [P2] [auto]
 Preconditions: none
@@ -963,7 +964,7 @@ Steps to reproduce:
 Actual: console shows `Failed to load resource: the server responded with a status of 403 () @ https://kit.fontawesome.com/372ad6816f.js`; Home/Products/Contact render with no icon glyph at all; `.user-section` (the div wrapping fa-user-circle, App.vue:20-21) has `getBoundingClientRect() = {width: 0, height: 0}` and `::before` computed `content: none` - it is present in the DOM but has no clickable surface, so a mouse user cannot open the Sign Out dropdown even once BUG-02's CSS is fixed
 Expected: icons render (kit is valid and unrestricted for this domain, or icons are self-hosted/bundled instead of depending on a third-party account-scoped script), and `.user-section` has a real box the same way `.btn-logout` (a <button> with padding and text) does
 Evidence: review/evidence/bug08-icons-not-rendering.png (screenshot - nav bar with text but no icons anywhere); live console/network capture via playwright-test MCP, 2026-09-13
-Notes: this Kit ID (`372ad6816f`) is almost certainly scoped in the developer's Font Awesome account to a specific domain - it 403s from any other origin, so this reproduces for every environment testing against localhost, not just this one. Root fix: self-host the Font Awesome SVGs (`@fortawesome/fontawesome-free` as a dependency) or issue a kit that allows `localhost`/the deployed domain, and give `.user-section` explicit dimensions so it doesn't depend on icon content for its hit area at all (ties into the BUG-06 "use a real <button>" fix). Cross-ref BUG-02, BUG-06, UI-008, UI-011.
+Notes: this Kit ID (`372ad6816f`) is almost certainly scoped in the developer's Font Awesome account to a specific domain - it 403s from any other origin, so this reproduces for every environment testing against localhost, not just this one. Root fix: self-host the Font Awesome SVGs (`@fortawesome/fontawesome-free` as a dependency) or issue a kit that allows `localhost`/the deployed domain, and give `.user-section` explicit dimensions so it doesn't depend on icon content for its hit area at all (ties into the BUG-06 "use a real <button>" fix). Cross-ref BUG-02, BUG-06, UI-008, UI-011b.
 ```
 
 ### Findings (risks and limitations - not failing tests)
@@ -1009,7 +1010,7 @@ Notes: this Kit ID (`372ad6816f`) is almost certainly scoped in the developer's 
 | Accessibility (A11Y-001…022) | 22 | 1 | 10 | 11 | 14 | 4 | 4 |
 | **Total** | **96** | **19** | **38** | **39** | **79** | **8** | **9** |
 
-Cases that document a **known defect** and are therefore expected to fail on the current build: `UI-002` (BUG-01), `UI-008` and `SESSION-006` (BUG-02), `A11Y-003`/`A11Y-004`/`A11Y-012` (BUG-03 - confirmed at runtime by axe: the whole-page scans of the logged-in states hit the `.btn-logout` contrast), `A11Y-007` (BUG-04), `A11Y-008`/`A11Y-009` (BUG-05), `A11Y-010` (BUG-06), `A11Y-021` (BUG-07), `UI-011`'s user-icon half and `SESSION-006` (also BUG-08, confirmed live via the playwright-test MCP browser), `A11Y-017`, `A11Y-018`, `A11Y-020`. Write them so they actually execute and fail on the current build (`test.fail(true, 'BUG-xx: ...')`), not `test.fixme()` - `test.fixme()` aborts the test body immediately and never turns red when the bug is fixed, so it cannot act as the "permanent regression guard" this plan and `DECISIONS.md` promise. Reserve `test.fixme()` for cases blocked by tooling/environment, not by an app defect. As implemented: `tests/a11y/axe.spec.ts` and `tests/a11y/keyboard.spec.ts` use `test.fail()` for every one of these except the two blocked by BUG-08's zero-size click target, where the trigger click itself is issued via `homePage.openUserMenu()` (a forced `dispatchEvent('click')`, not a real simulated mouse click) so the test fails fast on the actual assertion instead of hanging on a 30s actionability timeout.
+Cases that document a **known defect** and are therefore expected to fail on the current build: `UI-002` (BUG-01), `UI-008` and `SESSION-006` (BUG-02), `A11Y-003`/`A11Y-004`/`A11Y-012` (BUG-03 - confirmed at runtime by axe: the whole-page scans of the logged-in states hit the `.btn-logout` contrast), `A11Y-007` (BUG-04), `A11Y-008`/`A11Y-009` (BUG-05), `A11Y-010` (BUG-06), `A11Y-021` (BUG-07), `UI-011b` and `SESSION-006` (also BUG-08, confirmed live via the playwright-test MCP browser), `A11Y-017`, `A11Y-018`, `A11Y-020`. Write them so they actually execute and fail on the current build (`test.fail(true, 'BUG-xx: ...')`), not `test.fixme()` - `test.fixme()` aborts the test body immediately and never turns red when the bug is fixed, so it cannot act as the "permanent regression guard" this plan and `DECISIONS.md` promise. Reserve `test.fixme()` for cases blocked by tooling/environment, not by an app defect. As implemented: `tests/a11y/axe.spec.ts` and `tests/a11y/keyboard.spec.ts` use `test.fail()` for every one of these except the two blocked by BUG-08's zero-size click target, where the trigger click itself is issued via `homePage.openUserMenu()` (a forced `dispatchEvent('click')`, not a real simulated mouse click) so the test fails fast on the actual assertion instead of hanging on a 30s actionability timeout.
 
 Cases marked **(assumption)** - behaviour the code leaves undefined: `LOGIN-017`, `LOGIN-019`, `LOGIN-038`, `SESSION-009`, `SESSION-010`, `SESSION-012`, `SESSION-017`, `UI-004`, `UI-005`, `UI-010`.
 

@@ -1,10 +1,9 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures/test';
 import { admin, bianca } from '../fixtures/users';
+import { session, expectLoggedOut } from '../fixtures/assertions';
 import { LoginPage } from '../pages/login.page';
 import { HomePage } from '../pages/home.page';
-
-const session = (page: Page) => page.evaluate(() => localStorage.getItem('logged'));
 
 const dumpStorage = (page: Page) =>
   page.evaluate(() => ({
@@ -32,12 +31,11 @@ test.describe('Session · storage contract', () => {
     expect(storage.sessionStore).toEqual({});
   });
 
-  test('SESSION-003: the password is never persisted anywhere', { tag: ['@critical'] }, async ({ loginPage, cleanPage }) => {
-    await loginPage.login(admin.email, admin.password);
-    await expect.poll(() => session(cleanPage)).toBe(admin.email);
+  test('SESSION-003: the password is never persisted anywhere', { tag: ['@critical'] }, async ({ loggedInPage }) => {
+    await expect.poll(() => session(loggedInPage)).toBe(admin.email);
 
-    const storage = await dumpStorage(cleanPage);
-    const cookies = await cleanPage.context().cookies();
+    const storage = await dumpStorage(loggedInPage);
+    const cookies = await loggedInPage.context().cookies();
     const haystack = JSON.stringify({ ...storage, cookies });
 
     expect(storage.local).toEqual({ logged: admin.email });
@@ -61,84 +59,71 @@ test.describe('Session · lifecycle', () => {
   test('SESSION-004: the session survives a full page reload', { tag: ['@smoke', '@critical'] }, async ({
     loginPage,
     homePage,
-    cleanPage,
+    loggedInPage,
   }) => {
-    await loginPage.login(admin.email, admin.password);
-    await expect(homePage.nav).toBeVisible();
-
-    await cleanPage.reload();
+    await loggedInPage.reload();
 
     await expect(homePage.nav).toBeVisible();
     await expect(loginPage.section).toHaveCount(0);
-    expect(await session(cleanPage)).toBe(admin.email);
+    expect(await session(loggedInPage)).toBe(admin.email);
   });
 
   test('SESSION-005: the red Logout button ends the session', { tag: ['@smoke', '@critical'] }, async ({
     loginPage,
     homePage,
-    cleanPage,
+    loggedInPage,
   }) => {
-    await loginPage.login(admin.email, admin.password);
     await expect(homePage.logoutButton).toBeVisible();
 
     await homePage.logout();
 
-    await expect(loginPage.section).toBeVisible();
-    await expect(homePage.header).toHaveCount(0);
     await expect(homePage.content).toHaveCount(0);
-    await expect.poll(() => session(cleanPage)).toBeNull();
+    await expectLoggedOut(loginPage, homePage, loggedInPage);
   });
 
   test('SESSION-006: logout via the user-icon dropdown `Sign Out` ends the session', async ({
     loginPage,
     homePage,
-    cleanPage,
+    loggedInPage,
   }) => {
     test.fail(true, 'BUG-02: .logout stays display:none, so Sign Out is never reachable');
 
-    await loginPage.login(admin.email, admin.password);
     await homePage.openUserMenu();
     await expect(homePage.signOut).toBeVisible();
 
     await homePage.signOut.click();
     await expect(loginPage.section).toBeVisible();
-    expect(await session(cleanPage)).toBeNull();
+    expect(await session(loggedInPage)).toBeNull();
   });
 
   test('SESSION-007: after logout, neither reload nor Back restores the session', { tag: ['@critical'] }, async ({
     loginPage,
     homePage,
-    cleanPage,
+    loggedInPage,
   }) => {
-    await loginPage.login(admin.email, admin.password);
     await homePage.logout();
     await expect(loginPage.section).toBeVisible();
 
     await test.step('reload', async () => {
-      await cleanPage.reload();
-      await expect(loginPage.section).toBeVisible();
-      await expect(homePage.header).toHaveCount(0);
-      expect(await session(cleanPage)).toBeNull();
+      await loggedInPage.reload();
+      await expectLoggedOut(loginPage, homePage, loggedInPage);
     });
 
     await test.step('browser Back onto a page that was rendered logged in', async () => {
       await loginPage.login(admin.email, admin.password);
       await expect(homePage.nav).toBeVisible();
 
-      await cleanPage.goto('/?returning=1');
+      await loggedInPage.goto('/?returning=1');
       await homePage.logout();
       await expect(loginPage.section).toBeVisible();
 
-      await cleanPage.goBack();
-      await expect(cleanPage).toHaveURL('/');
-      await expect(loginPage.section).toBeVisible();
-      await expect(homePage.header).toHaveCount(0);
-      expect(await session(cleanPage)).toBeNull();
+      await loggedInPage.goBack();
+      await expect(loggedInPage).toHaveURL('/');
+      await expectLoggedOut(loginPage, homePage, loggedInPage);
     });
   });
 
-  test('SESSION-008: logout resets the visible form state', async ({ loginPage, homePage }) => {
-    await loginPage.login(admin.email, admin.password);
+  test('SESSION-008: logout resets the visible form state', async ({ loginPage, homePage, loggedInPage }) => {
     await homePage.logout();
 
     await expect(loginPage.section).toBeVisible();
@@ -179,15 +164,12 @@ test.describe('Session · storage is trusted without validation', () => {
   test('SESSION-012: removing `logged` externally does not log out the open tab until reload', async ({
     loginPage,
     homePage,
-    cleanPage,
+    loggedInPage,
   }) => {
-    await loginPage.login(admin.email, admin.password);
+    await loggedInPage.evaluate(() => localStorage.removeItem('logged'));
     await expect(homePage.nav).toBeVisible();
 
-    await cleanPage.evaluate(() => localStorage.removeItem('logged'));
-    await expect(homePage.nav).toBeVisible();
-
-    await cleanPage.reload();
+    await loggedInPage.reload();
     await expect(loginPage.section).toBeVisible();
   });
 });
@@ -196,11 +178,9 @@ test.describe('Session · cross-tab and cross-context isolation', () => {
   test('SESSION-013: logging out in tab A does not update tab B until it reloads', { tag: ['@critical'] }, async ({
     loginPage,
     homePage,
-    cleanPage,
+    loggedInPage,
   }) => {
-    await loginPage.login(admin.email, admin.password);
-
-    const tabB = await cleanPage.context().newPage();
+    const tabB = await loggedInPage.context().newPage();
     await tabB.goto('/');
     const homeB = new HomePage(tabB);
     const loginB = new LoginPage(tabB);
@@ -234,10 +214,8 @@ test.describe('Session · cross-tab and cross-context isolation', () => {
     await tabB.close();
   });
 
-  test('SESSION-015: a fresh browser context starts logged out', async ({ loginPage, cleanPage }) => {
-    await loginPage.login(admin.email, admin.password);
-
-    const freshContext = await cleanPage.context().browser()!.newContext();
+  test('SESSION-015: a fresh browser context starts logged out', async ({ loggedInPage }) => {
+    const freshContext = await loggedInPage.context().browser()!.newContext();
     const freshPage = await freshContext.newPage();
     await freshPage.goto('/');
 
