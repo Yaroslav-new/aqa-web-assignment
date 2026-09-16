@@ -53,7 +53,7 @@ tests/
 ├── e2e/                        functional specs: login, session, ui
 ├── a11y/                       accessibility: keyboard operability + axe WCAG A/AA scans
 ├── pages/                      Page Objects - locators and actions, no assertions
-└── fixtures/                   clean-state fixture + test data
+└── fixtures/                   clean-state/logged-in fixtures + test data + shared assertions
 playwright.config.ts            webServer on :5173, chromium project, traces/video on failure
 vitest.config.ts                scopes the unit layer; keeps Vitest away from Playwright specs
 tsconfig.json                   strict TS over the test project only (the app stays JS)
@@ -65,9 +65,21 @@ How a test executes, end to end:
 1. The **`cleanPage` fixture** ([tests/fixtures/test.ts](tests/fixtures/test.ts))
    navigates to the origin, wipes `localStorage`/`sessionStorage` and reloads -
    every test starts logged out, independent of order, safe to run in parallel.
+   The **`loggedInPage` fixture** builds on it for cases whose precondition is
+   simply "already logged in as admin" - it replaces the
+   `loginPage.login(admin.email, admin.password)` call and the follow-up
+   "nav is visible" sanity check that used to be retyped at the top of most
+   session/UI/a11y tests. Tests that need to observe the moment of login
+   itself (attach a listener first, assert the instant a session key appears,
+   resize the viewport before submitting) still call `loginPage.login`
+   directly instead.
 2. **Page Objects** ([tests/pages/](tests/pages/)) expose semantic locators
    (`getByRole`, `getByLabel`, `getByPlaceholder`) and actions. They hold no
-   assertions; specs hold no raw selectors.
+   assertions; specs hold no raw selectors. Shared assertion helpers
+   (`session()`, `expectLoggedOut()`) live in
+   [tests/fixtures/assertions.ts](tests/fixtures/assertions.ts) instead -
+   still at the spec layer, just factored out once instead of being retyped,
+   slightly differently, in every file that needs the same check.
 3. **Test data** flows from one source: `js/users.js` → re-exported by
    [tests/fixtures/users.ts](tests/fixtures/users.ts) → imported by specs.
    Credentials are never retyped. `LOGIN-DATA-01` asserts the app authenticates
@@ -121,7 +133,7 @@ the day someone fixes the app - a real regression guard, not a silent skip:
   name, or keyboard handler.
 - `A11Y-021` - **BUG-07**: none of the six Font Awesome icons carry
   `aria-hidden`.
-- `SESSION-006`, `UI-011`'s user-icon half - **BUG-08**: `.user-section` has
+- `SESSION-006`, `UI-011b` - **BUG-08**: `.user-section` has
   zero rendered size because the Font Awesome kit script 403s, so it has no
   clickable hit area even once BUG-02's CSS is fixed. Any test that must
   interact with it uses `homePage.openUserMenu()`, which dispatches the click
